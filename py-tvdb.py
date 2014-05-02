@@ -5,10 +5,8 @@ from tempfile import TemporaryFile
 from bs4 import BeautifulSoup
 
 class PyTVDB(object):
-
 	#TODO implement data cache for subsequent queries
-
-	mirror = 'http://thetvdb.com'
+	mirror   = 'http://thetvdb.com'
 
 	def __init__(self, api_key, language='en'):
 		self.api_key  = api_key
@@ -28,7 +26,6 @@ class PyTVDB(object):
 			results = []
 
 			for series in data:
-
 				node_value = lambda node : node.string if node != None else None
 
 				results.append({
@@ -41,7 +38,6 @@ class PyTVDB(object):
 					'imdb_id'		: node_value(series.imdb_id),
 					'zap2it_id'		: node_value(series.zap2it_id)
 				})
-
 		return results
 
 	def get_series(self, series_id):
@@ -50,17 +46,14 @@ class PyTVDB(object):
 		response = requests.get('%s/api/%s/series/%s/all/%s.zip' % (self.mirror, self.api_key, series_id, self.language))
 		response.raise_for_status()
 
-		tmp_file = TemporaryFile()
-		tmp_file.write(response.content)
-		zip_file = ZipFile(tmp_file, 'r')
-		xml_file = zip_file.open('%s.xml' % (self.language))
-
-		data    = BeautifulSoup(xml_file.read())
-		series  = data.find('series')
-
-		seasons = max([ int(s.string) for s in data.find_all('seasonnumber') ])
-
-		tmp_file.close()
+		with TemporaryFile() as tmp_file :
+			tmp_file.write(response.content)
+			with ZipFile(tmp_file, 'r') as zip_file :
+				with zip_file.open('%s.xml' % (self.language)) as xml_file :
+					data    = BeautifulSoup(xml_file.read())
+					series  = data.find('series')
+					seasons = max([ int(s.string) for s in data.find_all('seasonnumber') ])
+					# TODO maybe replace bs for lxml for css selectors like :last-child ?
 
 		result = {
 			'tvdb_id'			: series.id.string,
