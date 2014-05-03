@@ -13,7 +13,8 @@ from bs4 import BeautifulSoup
 '''
 
 class PyTVDB(object) :
-	#TODO implement data cache for subsequent queries
+	# TODO implement data cache for subsequent queries
+	
 	mirror = 'http://thetvdb.com'
 
 	cache_id   = None
