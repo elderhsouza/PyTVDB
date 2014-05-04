@@ -1,3 +1,4 @@
+import time
 import requests
 
 from zipfile import ZipFile
@@ -6,7 +7,8 @@ from bs4 import BeautifulSoup
 
 '''
 # ------------------- TODO
-- output options (object or xml)
+- output options (object or xml) see below better idea ;)
+- abstract dictionaries into classes (Series, Episode, Actor)
 '''
 
 class PyTVDB(object):
@@ -21,6 +23,10 @@ class PyTVDB(object):
 		''
 		self.api_key = api_key
 		self.language = language
+
+	def _filter_value(self, node):
+		''
+		return node.string if node else None
 
 	def _is_cached(self, series_id):
 		''
@@ -79,20 +85,18 @@ class PyTVDB(object):
 
 		if len(data) > 1:
 			results = []
-			for series in data:
-				def filter_node(node):
-					return node.string if node else None
 
+			for series in data:
 				results.append({
-					'tvdb_id': filter_node(series.seriesid),
-					'title': filter_node(series.seriesname),
-					'language': filter_node(series.language),
-					'overview': filter_node(series.overview),
-					'first_aired': filter_node(series.firstaired),
-					'network': filter_node(series.network),
-					'imdb_id': filter_node(series.imdb_id),
-					'zap2it_id': filter_node(series.zap2it_id),
-					'banner': filter_node(series.banner)
+					'tvdb_id': self._filter_value(series.seriesid),
+					'title': self._filter_value(series.seriesname),
+					'language': self._filter_value(series.language),
+					'overview': self._filter_value(series.overview),
+					'first_aired': self._filter_value(series.firstaired),
+					'network': self._filter_value(series.network),
+					'imdb_id': self._filter_value(series.imdb_id),
+					'zap2it_id': self._filter_value(series.zap2it_id),
+					'banner': self._filter_value(series.banner)
 				})
 		else :
 			return
@@ -109,52 +113,88 @@ class PyTVDB(object):
 
 		# TODO prepend image urls with the appropriate domain path
 		result = {
-			'tvdb_id': series.id.string,
-			'title': series.seriesname.string,
-			'airs_day_of_week': series.airs_dayofweek.string,
-			'airs_time': series.airs_time.string,
-			'content_rating': series.contentrating.string,
-			'first_aired': series.firstaired.string,
-			'genre': series.genre.string,
-			'imdb_id': series.imdb_id.string,
-			'network': series.network.string,
-			'network_id': series.networkid.string,
-			'rating': series.rating.string,
-			'rating_count': series.ratingcount.string,
-			'runtime': series.runtime.string,
-			'overview': series.overview.string,
-			'status': series.status.string,
-			'zap2it_id': series.zap2it_id.string,
-			'language': series.language.string,
-			'actors': series.actors.string,
-			'added': series.added.string,
-			'added_by': series.addedby.string,
-			'banner': series.banner.string,
-			'fanart': series.fanart.string,
-			'poster': series.poster.string,
+			'tvdb_id': self._filter_value(series.id),
+			'title': self._filter_value(series.seriesname),
+			'airs_day_of_week': self._filter_value(series.airs_dayofweek),
+			'airs_time': self._filter_value(series.airs_time),
+			'content_rating': self._filter_value(series.contentrating),
+			'first_aired': self._filter_value(series.firstaired),
+			'genre': self._filter_value(series.genre),
+			'imdb_id': self._filter_value(series.imdb_id),
+			'network': self._filter_value(series.network),
+			'network_id': self._filter_value(series.networkid),
+			'rating': self._filter_value(series.rating),
+			'rating_count': self._filter_value(series.ratingcount),
+			'runtime': self._filter_value(series.runtime),
+			'overview': self._filter_value(series.overview),
+			'status': self._filter_value(series.status),
+			'zap2it_id': self._filter_value(series.zap2it_id),
+			'language': self._filter_value(series.language),
+			'actors': self._filter_value(series.actors),
+			'added': self._filter_value(series.added),
+			'added_by': self._filter_value(series.addedby),
+			'banner': self._filter_value(series.banner),
+			'fanart': self._filter_value(series.fanart),
+			'poster': self._filter_value(series.poster),
 			'seasons': num_seasons
 		}
 		return result
 
-		# print num_seasons
-		# seasons = max([int(s.string) for s in data.find_all('seasonnumber')])
-		# print seasons
+	def get_episodes(self, series_id, include_specials=False, include_unaired=False):
+		'return a list dictionary with all episodes from a series, optionally including any specials'
 
-		# print data['series']
-		# print data['episodes']
+		data = self._get_data(series_id)
+		episodes = data['episodes']
 
-		# print data['series']
-		# print data['episodes']
+		results = []
+		for episode in episodes:
 
-		# series = data.find('series')
+			if not include_specials and episode.seasonnumber.string == '0': 
+				continue
 
-		# seasons = max([int(s.string) for s in data.find_all('seasonnumber')])
-		# # TODO maybe replace bs for lxml for css selectors like :last-child ?
+			air_date = time.strptime(episode.firstaired.string, '%Y-%m-%d')
+			current_date = time.localtime(time.time())
 
+			if not include_unaired and current_date < air_date:
+				continue
+
+			results.append({
+				'id': self._filter_value(episode.id),
+				'combined_episode_number': self._filter_value(episode.combined_episodenumber),
+				'combined_season': self._filter_value(episode.combined_season),
+				'dvd_chapter': self._filter_value(episode.dvd_chapter),
+				'dvd_disc_id': self._filter_value(episode.dvd_discid),
+				'dvd_episode_number': self._filter_value(episode.dvd_episodenumber),
+				'dvd_season': self._filter_value(episode.dvd_season),
+				'director': self._filter_value(episode.director),
+				'ep_img_flag': self._filter_value(episode.epimgflag),
+				'episode_name': self._filter_value(episode.episodename),
+				'episode_number': self._filter_value(episode.episodenumber),
+				'first_aired': self._filter_value(episode.firstaired),
+				'guest_stars': self._filter_value(episode.gueststars),
+				'imdb_id': self._filter_value(episode.imdb_id),
+				'language': self._filter_value(episode.language),
+				'overview': self._filter_value(episode.overview),
+				'production_code': self._filter_value(episode.productioncode),
+				'rating': self._filter_value(episode.rating),
+				'rating_count': self._filter_value(episode.ratingcount),
+				'season_number': self._filter_value(episode.seasonnumber),
+				'writer': self._filter_value(episode.writer),
+				'absolute_number': self._filter_value(episode.absolute_number),
+				'airs_after_season': self._filter_value(episode.airsafter_season),
+				'airs_before_episode': self._filter_value(episode.airsbefore_episode),
+				'airs_before_season': self._filter_value(episode.airsbefore_season),
+				'filename': self._filter_value(episode.filename),
+				'last_updated': self._filter_value(episode.lastupdated),
+				'season_id': self._filter_value(episode.seasonid),
+				'series_id': self._filter_value(episode.seriesid),
+				'thumb_added': self._filter_value(episode.thumb_added),
+				'thumb_width': self._filter_value(episode.thumb_width),
+				'thumb_height': self._filter_value(episode.thumb_height)
+			})
+
+		return results
 		
-
-	def get_all_episodes(self, series_id, include_specials=False):
-		pass
 
 	def get_episodes_by_season(self, series_id, season_number):
 		pass
@@ -200,9 +240,14 @@ tvdb = PyTVDB('D229EEECFE78BA5F')
 # print tvdb.search('thrones')
 
 # print tvdb.get_series(121361)
-print tvdb.get_series('121361')
-print tvdb.get_series('81189')
-print tvdb.get_series(81189)
+# print tvdb.get_series('121361')
+# print tvdb.get_series('81189')
+# print tvdb.get_series(81189)
+
+# episodes = tvdb.get_episodes(121361)
+# for ep in episodes:
+# 	print '%s - S%sE%s: %s' % (ep['first_aired'], ep['season_number'], ep['episode_number'], ep['episode_name'])
+
 # print tvdb.get_series('121361')
 # print tvdb.get_series(90989999999999)
 
