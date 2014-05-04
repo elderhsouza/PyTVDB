@@ -15,37 +15,97 @@ class PyTVDB(object):
 	mirror = 'http://thetvdb.com'
 
 	cache_id = None
-	data_cache = {}
+	cache = {}
 
 	def __init__(self, api_key, language='en'):
+		''
 		self.api_key = api_key
 		self.language = language
 
-	def _check_cache(self, series_id):
+	def _is_cached(self, series_id):
+		''
 		return str(self.cache_id) == str(series_id)
 
-	def _flush_cache(self):
+	def _clear_cache(self):
+		''
 		self.cache_id = None
-		self.data_cache = {}
+		self.cache = {}
 
+	# TODO Implement TypeArgumentException, IOException, BadZipFileException, HTTP404Exception, ConnectionException
 	def _get_data(self, series_id):
-		# TODO raise TypeError?
-		
-		if self._check_cache(series_id):
-			data = self.data_cache['series']
+		'get series(tv show) information from thetvdb.com and cache the results'
+
+		series_id = str(series_id)
+
+		if self._is_cached(series_id):
+			data = self.cache
+
 		else:
 			response = requests.get('%s/api/%s/series/%s/all/%s.zip' % (self.mirror, self.api_key, series_id, self.language))
 			if response.status_code != 200:
 				return
-			self._flush_cache()
+
+			self._clear_cache()
+
 			with TemporaryFile() as tmp_file:
 				tmp_file.write(response.content)
+
 				with ZipFile(tmp_file, 'r') as zip_file:
-					with zip_file.open('%s.xml' % (self.language)) as xml_file:
-						data = BeautifulSoup(xml_file.read())
-		series = data.find('series')
-		seasons = max([int(s.string) for s in data.find_all('seasonnumber')])
-		# TODO maybe replace bs for lxml for css selectors like :last-child ?
+					
+					with zip_file.open('%s.xml' % (self.language)) as xml_info:
+						content = BeautifulSoup(xml_info.read())
+
+						self.cache['series'] = content.find('series')
+						self.cache['episodes'] = content.find_all('episode')
+
+					with zip_file.open('actors.xml') as xml_actors:
+						self.cache['actors'] = BeautifulSoup(xml_actors.read())
+
+					with zip_file.open('banners.xml') as xml_banners:
+						self.cache['banners'] = BeautifulSoup(xml_banners.read())
+
+		self.cache_id = series_id
+		data = self.cache
+
+		return data
+
+	def search(self, query):
+		'search thetvdb.com database for series(tvshow) containing the query and return a list of dictionaries with the results'
+
+		response = requests.get('%s/api/GetSeries.php?seriesname=%s' % (self.mirror, query))
+		response.raise_for_status()
+
+		data = BeautifulSoup(response.text).find_all('series')
+
+		if len(data) > 1:
+			results = []
+			for series in data:
+				def filter_node(node):
+					return node.string if node else None
+
+				results.append({
+					'tvdb_id': filter_node(series.seriesid),
+					'title': filter_node(series.seriesname),
+					'language': filter_node(series.language),
+					'overview': filter_node(series.overview),
+					'first_aired': filter_node(series.firstaired),
+					'network': filter_node(series.network),
+					'imdb_id': filter_node(series.imdb_id),
+					'zap2it_id': filter_node(series.zap2it_id),
+					'banner': filter_node(series.banner)
+				})
+		else :
+			return
+
+		return results
+
+	def get_series(self, series_id) :
+		'get series(tv show) info from thetvdb.com and return a dictionary with the results'
+
+		data = self._get_data(series_id)
+
+		series = data['series']
+		num_seasons = data['episodes'][-1].seasonnumber.string
 
 		# TODO prepend image urls with the appropriate domain path
 		result = {
@@ -72,108 +132,77 @@ class PyTVDB(object):
 			'banner': series.banner.string,
 			'fanart': series.fanart.string,
 			'poster': series.poster.string,
-			'seasons': seasons
+			'seasons': num_seasons
 		}
-		self.cache_id = series_id
-		self.data_cache['series'] = data
-
 		return result
 
-	def search(self, query):
-		'search thetvdb.com database for shows containing the query'
+		# print num_seasons
+		# seasons = max([int(s.string) for s in data.find_all('seasonnumber')])
+		# print seasons
 
-		response = requests.get('%s/api/GetSeries.php?seriesname=%s' % (self.mirror, query))
-		response.raise_for_status()
+		# print data['series']
+		# print data['episodes']
 
-		data = BeautifulSoup(response.text).find_all('series')
+		# print data['series']
+		# print data['episodes']
 
-		if len(data) > 1:
-			results = []
-			for series in data:
-				def filter_node(node):
-					return node.string if node else None
+		# series = data.find('series')
 
-				results.append({
-					'tvdb_id': filter_node(series.seriesid),
-					'title': filter_node(series.seriesname),
-					'language': filter_node(series.language),
-					'overview': filter_node(series.overview),
-					'first_aired': filter_node(series.firstaired),
-					'network': filter_node(series.network),
-					'imdb_id': filter_node(series.imdb_id),
-					'zap2it_id': filter_node(series.zap2it_id)
-				})
-		else :
-			return
+		# seasons = max([int(s.string) for s in data.find_all('seasonnumber')])
+		# # TODO maybe replace bs for lxml for css selectors like :last-child ?
 
-		return results
+		
 
-	def get_series(self, series_id) :
+	def get_all_episodes(self, series_id, include_specials=False):
 		pass
 
-	def get_all_episodes(self, series_id) :
+	def get_episodes_by_season(self, series_id, season_number):
 		pass
 
-	def get_episodes_by_season(self, series_id, season_number) :
+	def get_episode_by_number(self, series_id, season_number, episode_number):
 		pass
 
-	def get_episode(self, episode_id) :
+	def get_episode_by_id(self, series_id, episode_id):
 		pass
 
-	def get_actors(self, series_id) :
+	def get_actors(self, series_id):
 		pass
 
 	# server_time 1399036356
-	def get_updates(self, server_time, *series_id) :
+	def get_updates(self, server_time, *series_id):
 		pass
 
 	#TODO implement graphics request
-
-	def get_graphics(self, series_id) :
+	def get_graphics(self, series_id):
 		pass
 
-	def get_banners(self, series_id) :
+	def get_banners(self, series_id):
 		pass
 
-	def get_posters(self, series_id) :
+	def get_posters(self, series_id):
 		pass
 
-	def get_fanart(self, series_id) :
+	def get_fanart(self, series_id):
 		pass
 
-	def get_series_posters(self, series_id) :
+	def get_series_posters(self, series_id):
 		pass
 
-	def get_season_posters(self, series_id, season_number) :
+	def get_season_posters(self, series_id, season_number):
 		pass
 		
 
 #------------ TESTING
+# series_id: ['game of thrones': 121361, 'breaking bad': 81189]
 
 tvdb = PyTVDB('D229EEECFE78BA5F')
-search = tvdb.search('thrones')
-print search
 
-# series = search[1]
-# print series
+# print tvdb.search('thrones')
 
-# info = tvdb.get_series(series['tvdb_id'])
-# 121361 game of thrones | 81189 breaking bad
+# print tvdb.get_series(121361)
+print tvdb.get_series('121361')
+print tvdb.get_series('81189')
+print tvdb.get_series(81189)
+# print tvdb.get_series('121361')
+# print tvdb.get_series(90989999999999)
 
-# info = tvdb.get_series(121361) # 121361 game of thrones
-# print info
-
-# info = tvdb.get_series(121361) # 121361 game of thrones
-# print info
-
-# info = tvdb.get_series(81189) # 81189 breaking bad
-# print info
-
-# info = tvdb.get_series(81189) # 81189 breaking bad
-# print info
-
-# info = tvdb.get_series(121361) # 121361 game of thrones
-# print info
-
-# info = tvdb.get_series(9999999999999999) # mal-formed id
-# print info
