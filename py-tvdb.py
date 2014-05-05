@@ -208,6 +208,9 @@ class PyTVDB(object):
 	def get_actors(self, series_id):
 		pass
 
+	def get_actor(self, actor_id):
+		pass
+
 	# server_time 1399036356
 	def get_updates(self, server_time, *series_id):
 		pass
