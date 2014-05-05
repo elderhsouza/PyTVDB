@@ -11,6 +11,13 @@ from bs4 import BeautifulSoup
 - abstract dictionaries into classes (Series, Episode, Actor)
 '''
 
+class Series(object):
+
+	# def __init__(self, series_id):
+	# 	series_id = str(series_id)
+	# 	response = requests.get('%s/api/%s/series/%s/all/%s.zip' % (self.mirror, self.api_key, series_id, self.language))
+
+
 class PyTVDB(object):
 	# TODO implement data cache for subsequent queries
 	
@@ -140,8 +147,8 @@ class PyTVDB(object):
 		}
 		return result
 
-	def get_episodes(self, series_id, include_specials=False, include_unaired=False):
-		'return a list dictionary with all episodes from a series, optionally including any specials'
+	def get_episodes(self, series_id, include_unaired=False, include_specials=False):
+		'return a list dictionary with all episodes from a series, optionally including unaired episodes and/or specials'
 
 		data = self._get_data(series_id)
 		episodes = data['episodes']
@@ -149,7 +156,7 @@ class PyTVDB(object):
 		results = []
 		for episode in episodes:
 
-			if not include_specials and episode.seasonnumber.string == '0': 
+			if not include_specials and episode.seasonnumber.string == '0':
 				continue
 
 			air_date = time.strptime(episode.firstaired.string, '%Y-%m-%d')
@@ -197,7 +204,53 @@ class PyTVDB(object):
 		
 
 	def get_episodes_by_season(self, series_id, season_number):
-		pass
+		''
+
+		data = self._get_data(series_id)
+		episodes = data['episodes']
+
+		results = []
+		for episode in episodes:
+
+			if episode.seasonnumber.string == str(season_number):
+				results.append({
+				'id': self._filter_value(episode.id),
+				'combined_episode_number': self._filter_value(episode.combined_episodenumber),
+				'combined_season': self._filter_value(episode.combined_season),
+				'dvd_chapter': self._filter_value(episode.dvd_chapter),
+				'dvd_disc_id': self._filter_value(episode.dvd_discid),
+				'dvd_episode_number': self._filter_value(episode.dvd_episodenumber),
+				'dvd_season': self._filter_value(episode.dvd_season),
+				'director': self._filter_value(episode.director),
+				'ep_img_flag': self._filter_value(episode.epimgflag),
+				'episode_name': self._filter_value(episode.episodename),
+				'episode_number': self._filter_value(episode.episodenumber),
+				'first_aired': self._filter_value(episode.firstaired),
+				'guest_stars': self._filter_value(episode.gueststars),
+				'imdb_id': self._filter_value(episode.imdb_id),
+				'language': self._filter_value(episode.language),
+				'overview': self._filter_value(episode.overview),
+				'production_code': self._filter_value(episode.productioncode),
+				'rating': self._filter_value(episode.rating),
+				'rating_count': self._filter_value(episode.ratingcount),
+				'season_number': self._filter_value(episode.seasonnumber),
+				'writer': self._filter_value(episode.writer),
+				'absolute_number': self._filter_value(episode.absolute_number),
+				'airs_after_season': self._filter_value(episode.airsafter_season),
+				'airs_before_episode': self._filter_value(episode.airsbefore_episode),
+				'airs_before_season': self._filter_value(episode.airsbefore_season),
+				'filename': self._filter_value(episode.filename),
+				'last_updated': self._filter_value(episode.lastupdated),
+				'season_id': self._filter_value(episode.seasonid),
+				'series_id': self._filter_value(episode.seriesid),
+				'thumb_added': self._filter_value(episode.thumb_added),
+				'thumb_width': self._filter_value(episode.thumb_width),
+				'thumb_height': self._filter_value(episode.thumb_height)
+			})
+			else:
+				continue
+
+		return results
 
 	def get_episode_by_number(self, series_id, season_number, episode_number):
 		pass
@@ -246,11 +299,14 @@ tvdb = PyTVDB('D229EEECFE78BA5F')
 # print tvdb.get_series('121361')
 # print tvdb.get_series('81189')
 # print tvdb.get_series(81189)
+# print tvdb.get_series('121361')
+# print tvdb.get_series(90989999999999)
 
 # episodes = tvdb.get_episodes(121361)
 # for ep in episodes:
 # 	print '%s - S%sE%s: %s' % (ep['first_aired'], ep['season_number'], ep['episode_number'], ep['episode_name'])
 
-# print tvdb.get_series('121361')
-# print tvdb.get_series(90989999999999)
+season_episodes = tvdb.get_episodes_by_season(121361, 3)
+for ep in season_episodes:
+	print '%s - S%sE%s: %s' % (ep['first_aired'], ep['season_number'], ep['episode_number'], ep['episode_name'])
 
