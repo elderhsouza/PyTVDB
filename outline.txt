@@ -1,0 +1,42 @@
+usage
+
+tvdb = PyTVDB(api_key, language='en')
+
+search_results = tvdb.search(query)
+returns
+[
+	SeriesPreview{
+		id int
+		title string
+		overview string,
+		first_aired date,
+		network string,
+		imdb_id string path,
+		zap2it_id string path,
+		banner string path
+	}
+], ...
+
+series = tvdb.get_series(series_id)
+return
+SeriesInfo{
+	id int
+	title title
+	overview title
+	episodes: EpisodesList[
+		EpisodeInfo{
+			id int
+			title string
+			season_number int
+			episode_number int
+		}
+	], ...
+}
+
+episodes = series.episodes
+
+first_season = episodes.get_season(season_number)
+[ Episode, ... ]
+
+eps01e05 = episodes.get_episode(season_number, episode_number)
+
