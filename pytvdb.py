@@ -245,6 +245,7 @@ class GraphicInfo(object):
 class PyTVDB(object):
 	'''
 	'''
+	version = '0.0.1'
 	mirror = 'http://thetvdb.com'
 
 	def __init__(self, api_key, language = 'en'):

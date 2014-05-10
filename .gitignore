@@ -1,4 +1,4 @@
 *.sublime*
 tests/
-samples/
+data_samples/
 *_test.*
