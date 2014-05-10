@@ -11,23 +11,13 @@ from bs4 import BeautifulSoup
 - abstract dictionaries into classes (Series, Episode, Actor)
 '''
 
-# TODO add docstrings - example below
-# """
-# Calculate the square root of a number.
-
-# Args:
-#     n: the number to get the square root of.
-# Returns:
-#     the square root of n.
-# Raises:
-#     TypeError: if n is not a number.
-#     ValueError: if n is negative.
-# """
-
 # TODO prepend image values with full http path
 def filter_node(node):
 	''
 	return node.string if node else None
+
+def clean_dict(dict):
+	pass
 
 class SeriesPreview(object):
 
@@ -73,63 +63,79 @@ class SeriesInfo(object):
 
 		self.episodes = EpisodesList(data['info'].find_all('episode'))
 
-# TODO Implement generators
+
 class EpisodesList(list):
 	''''''
-	def __init__(self, data):
+	def __init__(self, episodes):
 		self.include_unaired = False
 		self.include_specials = False
 
-		total_episodes = 0
+		ep_counter = 0
 
-		for episode in data:
+		for episode in episodes:
 			self.append(EpisodeInfo(episode))
-			total_episodes += 1
+			ep_counter += 1
 
-		self.total_episodes = total_episodes
-
-	def _should_list_episode(self, episode, include_unaired=self.include_unaired, include_specials=self.include_specials):
-		return True
+		self.total_episodes = ep_counter
 
 	def _episodes_generator(self):
 		i = 0
 		while i < self.total_episodes:
 			if (self.include_unaired or not self[i].is_unaired) and \
 			(self.include_specials or not self[i].is_special):
-				yield (i)
+				yield i
 			i += 1
 
+	# @config_iter
 	def __iter__(self):
 		return (self[i] for i in self._episodes_generator())
 
 	def __len__(self):
- 	return len(list(self._episodes_generator()))
+ 		return len(list(self._episodes_generator()))
 
-	# TODO Implement __len__ and __contains__ methods
+	# TODO raise IndexError, TypeError
+	def get_season(self, season_number=1):
+		'''
+		Gets all episodes from a season.
 
-	# def __contains__(self):
-	# 	pass
-
-	# TODO raise OutOfBoundsError - season not found, ArgumentTypeError
-	def get_season(self, season_number):
-		''''''
+		Args:
+		    season_number: the number of the season; defaults to 1
+		Returns:
+		    a list of EpisodeInfo objects for each episode on the season.
+		Raises:
+		    IndexError: if season_number is < 1 or > then the total number of seasons.
+		    TypeError: if season_number is not convertible to an integer
+		'''
 		return [episode for episode in self
 			if episode.season_number == str(season_number)]
 
-	# TODO raise OutOfBoundsError - episode not found, ArgumentTypeError
-	def get_episode(self, season_number, episode_number):
-		''''''
+	# TODO raise IndexError, TypeError
+	def get_episode(self, season_number=1, episode_number=1):
+		'''
+		Get a specific episode
+
+		Args:
+			season_number: the number of the season; defaults to 1
+			episode_number: the number of the episode; defaults to 1
+		Returns:
+			an EpisodeInfo object or None if the episode is not found
+		Raises:
+			IndexError: if season_number or episode_number is < 1 or > then the total number of seasons and episodes
+			TypeError: if season_number or episode_number is not convertible to an integer
+		'''
 		return self.get_season(season_number)[episode_number - 1]
 
 	def get_unaired(self):
-		return [episode for episode in self
-			if episode.is_unaired]
+		'''returns a list with unaired espisodes'''
+		return [self[i] for i in range(self.total_episodes)
+			if self[i].is_unaired]
 
 	def get_specials(self):
-		return [episode for episode in self
-			if episode.is_special]
+		'''returns a list with special objects (not conatined in any season)'''
+		return [self[i] for i in range(self.total_episodes)
+			if self[i].is_special]
 
-# TODO Use __dict__ to set instance attributes
+# TODO Use __dict__.update to set instance attributes
 class EpisodeInfo(object):
 	''''''
 	def __init__(self, data):
@@ -169,15 +175,23 @@ class EpisodeInfo(object):
 		self.thumb_width = filter_node(data.thumb_width)
 		self.thumb_height = filter_node(data.thumb_height)
 		
-		# check if the episode was aired or not
-		air_date = time.strptime(data.firstaired.string, '%Y-%m-%d')
-		current_date = time.localtime(time.time())
-		self.is_unaired = (current_date < air_date)
+		# check if the episode was aired
+		# TODO - Check first aired value empty
+		if (data.firstaired.string is not None):
+			air_date = time.strptime(data.firstaired.string, '%Y-%m-%d')
+			current_date = time.localtime(time.time())
+			self.is_unaired = (current_date < air_date)
+		else:
+			self.is_unaired = False
 		
 		# check if the episode is a special episode
 		self.is_special = (self.season_number == '0')
 
 		# print self.__dict__
+
+	def __repr__(self):
+		# return '{EpisodeInfo: {id: %s, season_number: %s, episode_number: %s, episode_name: %s}}' % (self.id, self.season_number, self.episode_number, self.episode_name)
+		return '%s: S%sE%s' % (self.id, self.season_number, self.episode_number)
 
 class PyTVDB(object):
 	''''''
@@ -326,25 +340,64 @@ season = series.episodes.get_season(4)
 for ep in season:
 	print ep.id, ep.season_number, ep.episode_number, ep.episode_name
 
+episodes.include_unaired = False
+print '\n>>>> GET SEASON 4', 'include_unaired', episodes.include_unaired
+season = series.episodes.get_season(4)
+for ep in season:
+	print ep.id, ep.season_number, ep.episode_number, ep.episode_name
+
 print '\n>>>> SEASON 02 EPISODE 05'
 
-s02e05 = series.episodes.get_episode(2, 5)
-print s02e05.id, s02e05.season_number, s02e05.episode_number, s02e05.episode_name
+got_s02e05 = series.episodes.get_episode(2, 5)
+print got_s02e05.id, got_s02e05.season_number, got_s02e05.episode_number, got_s02e05.episode_name
 
 # print '\n>>>> SEASON 05 EPISODE 01'
 
-# s02e05 = series.episodes.get_episode(5, 1)
-# print s02e05.id, s02e05.season_number, s02e05.episode_number, s02e05.episode_name
+# got_s02e05 = series.episodes.get_episode(5, 1)
+# print got_s02e05.id, got_s02e05.season_number, got_s02e05.episode_number, got_s02e05.episode_name
 
-print '\n>>>> UNAIRED'
-unaired = series.episodes.get_unaired()
+episodes.include_unaired = True
+
+print '\n>>>> GET UNAIRED', episodes.include_unaired
+unaired = episodes.get_unaired()
 for ep in unaired:
 	print ep.id, ep.season_number, ep.episode_number, ep.episode_name, ep.is_special,  ep.is_unaired
 
-print '\n>>>> SPECIALS'
-specials = series.episodes.get_specials()
+episodes.include_unaired = False
+
+print '\n>>>> GET UNAIRED', episodes.include_unaired
+unaired = episodes.get_unaired()
+for ep in unaired:
+	print ep.id, ep.season_number, ep.episode_number, ep.episode_name, ep.is_special,  ep.is_unaired
+
+episodes.include_specials = True
+print '\n>>>> GET SPECIALS', episodes.include_specials
+specials = episodes.get_specials()
 for ep in specials:
 	print ep.id, ep.season_number, ep.episode_number, ep.episode_name, ep.is_special,  ep.is_unaired
+
+episodes.include_specials = False
+
+print '\n>>>> GET SPECIALS', episodes.include_specials
+specials = episodes.get_specials()
+for ep in specials:
+	print ep.id, ep.season_number, ep.episode_number, ep.episode_name, ep.is_special,  ep.is_unaired
+
+print '\n>>>> CONTAINS: G.O.T EPISODE IN G.O.T EPISODES LIST', got_s02e05, episodes
+print (got_s02e05 in episodes)
+
+bb = tvdb.get_series(81189)
+bb_episodes = bb.episodes
+bb_s04e05 = bb.episodes.get_episode(4, 5)
+
+print '\n>>>> CONTAINS: B.B EPISODE IN B.B EPISODES LIST', bb_s04e05, bb_episodes
+print (bb_s04e05 in bb_episodes)
+
+print '\n>>>> CONTAINS: G.O.T EPISODE IN B.B EPISODES LIST', got_s02e05, bb_episodes
+print (got_s02e05 in bb_episodes)
+
+print '\n>>>> CONTAINS: B.B EPISODE IN G.O.T EPISODES LIST', bb_s04e05, episodes
+print (bb_s04e05 in episodes)
 
 # print tvdb.get_series(121361)
 # print tvdb.get_series('121361')
@@ -352,12 +405,4 @@ for ep in specials:
 # print tvdb.get_series(81189)
 # print tvdb.get_series('121361')
 # print tvdb.get_series(90989999999999)
-
-# episodes = tvdb.get_episodes(121361)
-# for ep in episodes:
-# 	print '%s - S%sE%s: %s' % (ep['first_aired'], ep['season_number'], ep['episode_number'], ep['episode_name'])
-
-# season_episodes = tvdb.get_episodes_by_season(121361, 3)
-# for ep in season_episodes:
-# 	print '%s - S%sE%s: %s' % (ep['first_aired'], ep['season_number'], ep['episode_number'], ep['episode_name'])
 
