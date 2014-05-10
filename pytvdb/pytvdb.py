@@ -16,26 +16,27 @@ def filter_dict_value(value):
 	if '.jpg' in value:
 		return '%s/banners/%s' % (PyTVDB.mirror, value)
 
-	return value
+	return value.encode('utf-8')
 
 def filter_dict_key(key):
 	'''
 	'''
-	search_keys = (
+	search_for = (
 		'seriesid', 'seriesname', 'firstaired', 'airs_dayofweek', 'contentrating', 'networkid',
 		'ratingcount', 'addedby', 'lastupdated', 'combined_episodenumber', 'dvd_discid', 'dvd_episodenumber',
 		'epimgflag', 'episodename', 'episodenumber', 'gueststars', 'productioncode', 'seasonnumber',
-		'airsafter_season', 'airsbefore_episode', 'airsbefore_season', 'seasonid'
+		'airsafter_season', 'airsbefore_episode', 'airsbefore_season', 'seasonid', 'sortorder',
+		'bannerpath', 'bannertype', 'bannertype2', 'thumbnailpath', 'vignettepath'
 	)
-	replace_keys = (
+	replace_by = (
 		'series_id', 'series_name', 'first_aired', 'airs_day_of_week', 'content_rating', 'network_id',
 		'rating_count', 'added_by', 'last_updated', 'combined_episode_number', 'dvd_disc_id', 'dvd_episode_number',
 		'ep_img_flag', 'episode_name', 'episode_number', 'guest_stars', 'production_code', 'season_number',
-		'airs_after_season', 'airs_before_episode', 'airsbefore_season', 'season_id'
+		'airs_after_season', 'airs_before_episode', 'airsbefore_season', 'season_id', 'sort_order',
+		'banner_path', 'banner_type', 'banner_type_2', 'thumbnail_path', 'vignette_path'
 	)
-
-	if key in search_keys:
-		return replace_keys[search_keys.index(key)]
+	if key in search_for:
+		return replace_by[search_for.index(key)]
 	
 	return key
 
@@ -68,6 +69,8 @@ class SeriesInfo(object):
 		self.__dict__.update(sanitize_returned_data(data['info'].find('series')))
 		#
 		self.episodes = EpisodesList(data['info'].find_all('episode'))
+		self.actors = ActorsList(data['actors'].find_all('actor'))
+		self.graphics = GraphicsList(data['graphics'].find_all('banner'))
 
 
 class EpisodesList(list):
@@ -87,16 +90,6 @@ class EpisodesList(list):
 
 		self.total_episodes = total_episodes
 
-	def _episodes_generator(self):
-		'''
-		'''
-		i = 0
-		while i < self.total_episodes:
-			if (self.include_unaired or not self[i].is_unaired) and \
-			(self.include_specials or not self[i].is_special):
-				yield i
-			i += 1
-
 	def __iter__(self):
 		'''
 		'''
@@ -106,6 +99,16 @@ class EpisodesList(list):
 		'''
 		'''
  		return len(list(self._episodes_generator()))
+
+	def _episodes_generator(self):
+		'''
+		'''
+		i = 0
+		while i < self.total_episodes:
+			if (self.include_unaired or not self[i].is_unaired) and \
+			(self.include_specials or not self[i].is_special):
+				yield i
+			i += 1
 
 	# TODO raise IndexError, TypeError
 	def get_season(self, season_number = 1):
@@ -176,9 +179,70 @@ class EpisodeInfo(object):
 	def __repr__(self):
 		'''
 		'''
-		# return '{EpisodeInfo: {id: %s, season_number: %s, episode_number: %s, episode_name: %s}}' % (self.id, self.season_number, self.episode_number, self.episode_name)
-		return '{%s: S%sE%s | un:%s | sp:%s}' % \
-			(self.id, self.season_number, self.episode_number, self.is_unaired, self.is_special)
+		return '{EpisodeInfo: {id: %s, season: %s, episode number: %s, episode name: %s}}' % \
+			(self.id, self.season_number, self.episode_number, self.episode_name)
+
+
+class ActorsList(list):
+	'''
+	'''
+	def __init__(self, actors):
+		'''
+		'''
+		for actor in actors:
+			self.append(ActorInfo(actor))
+
+
+class ActorInfo(object):
+	'''
+	'''
+	def __init__(self, data):
+		'''
+		'''
+		self.__dict__.update(sanitize_returned_data(data))
+
+	def __repr__(self):
+		'''
+		'''
+		return '{ActorInfo: {id:%s, name: %s, role: %s}}' % \
+			(self.id, self.name, self.role)
+
+
+class GraphicsList(list):
+	'''
+	'''
+	TYPE_FANART = 'fanart'
+	TYPE_POSTER = 'poster'
+	TYPE_SEASON = 'season'
+	TYPE_SERIES = 'series'
+
+	def __init__(self, graphics):
+		'''
+		'''
+		for graphic in graphics:
+			self.append(GraphicInfo(graphic))
+
+	def get_by_type(self, image_type):
+		'''
+		'''
+		return [graphic for graphic in self if graphic.banner_type == image_type]
+
+
+class GraphicInfo(object):
+	'''
+	'''
+	def __init__(self, data):
+		'''
+		'''
+		self.__dict__.update(sanitize_returned_data(data))
+
+	def __repr__(self):
+		'''
+		'''
+		return '{GraphicInfo: {id: %s, type: %s, path: %s}}\n' % \
+			(self.id, self.banner_type, self.banner_path)
+		# return '%s\n' % (self.__dict__)
+
 
 class PyTVDB(object):
 	'''
@@ -211,11 +275,11 @@ class PyTVDB(object):
 				with zip_file.open('%s.xml' % (self.language)) as xml_info:
 					data['info'] = BeautifulSoup(xml_info.read())
 
-				# with zip_file.open('actors.xml') as xml_actors:
-				# 	data['actors'] = BeautifulSoup(xml_actors.read())
+				with zip_file.open('actors.xml') as xml_actors:
+				 	data['actors'] = BeautifulSoup(xml_actors.read())
 
-				# with zip_file.open('banners.xml') as xml_graphics:
-				# 	data['graphics'] = BeautifulSoup(xml_graphics.read())
+				with zip_file.open('banners.xml') as xml_graphics:
+				 	data['graphics'] = BeautifulSoup(xml_graphics.read())
 
 		return data
 
@@ -246,18 +310,6 @@ class PyTVDB(object):
 		'''
 		return SeriesInfo(self._get_data(series_id))
 
-	# TODO 
-	# def get_actors(self, series_id)
-	# def get_actor(self, actor_id):
-	# # server_time 1399036356
-	# def get_updates(self, server_time, *series_id):
-	# #TODO implement graphics request
-	# def get_graphics(self, series_id):
-	# def get_banners(self, series_id):
-	# def get_posters(self, series_id):
-	# def get_fanart(self, series_id):
-	# def get_series_posters(self, series_id):
-	# def get_season_posters(self, series_id, season_number):
 
 #------------ TESTING
 # series_id: ['game of thrones': 121361, 'breaking bad': 81189]
@@ -270,37 +322,46 @@ tvdb = PyTVDB('D229EEECFE78BA5F')
 
 series = tvdb.get_series(121361)
 
-episodes = series.episodes
-print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
-print '\nEPISODES LEN:', len(episodes)
-for ep in episodes:
-	print ep
+# actors = series.actors
+# print(actors)
 
-episodes.include_specials = True
-episodes.include_unaired = True
-print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
-print '\nEPISODES LEN:', len(episodes)
-for ep in episodes:
-	print ep
+graphics = series.graphics
+# print(graphics)
 
-episodes.include_specials = False
-episodes.include_unaired = True
-print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
-print '\nEPISODES LEN:', len(episodes)
-for ep in episodes:
-	print ep
+posters = graphics.get_by_type(GraphicsList.TYPE_POSTER)
+print posters
 
-episodes.include_specials = True
-episodes.include_unaired = False
-print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
-print '\nEPISODES LEN:', len(episodes)
-for ep in episodes:
-	print ep
+# episodes = series.episodes
+# print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
+# print '\nEPISODES LEN:', len(episodes)
+# for ep in episodes:
+# 	print ep
 
-print '\n>>>> GET SEASON 2'
-season = series.episodes.get_season(2)
-for ep in season:
-	print ep
+# episodes.include_specials = True
+# episodes.include_unaired = True
+# print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
+# print '\nEPISODES LEN:', len(episodes)
+# for ep in episodes:
+# 	print ep
+
+# episodes.include_specials = False
+# episodes.include_unaired = True
+# print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
+# print '\nEPISODES LEN:', len(episodes)
+# for ep in episodes:
+# 	print ep
+
+# episodes.include_specials = True
+# episodes.include_unaired = False
+# print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
+# print '\nEPISODES LEN:', len(episodes)
+# for ep in episodes:
+# 	print ep
+
+# print '\n>>>> GET SEASON 2'
+# season = series.episodes.get_season(2)
+# for ep in season:
+# 	print ep
 
 # print '\n>>>> GET SEASON 4'
 # season = series.episodes.get_season(4)
