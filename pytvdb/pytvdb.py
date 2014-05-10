@@ -4,12 +4,6 @@ from zipfile import ZipFile
 from tempfile import TemporaryFile
 from bs4 import BeautifulSoup
 
-'''
-# ------------------- TODO
-- output options (object or xml) see below better idea ;)
-- abstract dictionaries into classes (Series, Episode, Actor)
-'''
-
 def filter_dict_value(value):
 	'''
 	'''
@@ -59,6 +53,11 @@ class SeriesPreview(object):
 		'''
 		self.__dict__.update(sanitize_returned_data(data))
 
+	def __repr__(self):
+		'''
+		'''
+		return '{SeriesPreview: %s}' % (self.__dict__)
+
 
 class SeriesInfo(object):
 	'''
@@ -67,10 +66,15 @@ class SeriesInfo(object):
 		'''
 		'''
 		self.__dict__.update(sanitize_returned_data(data['info'].find('series')))
-		#
+		
 		self.episodes = EpisodesList(data['info'].find_all('episode'))
 		self.actors = ActorsList(data['actors'].find_all('actor'))
 		self.graphics = GraphicsList(data['graphics'].find_all('banner'))
+
+	def __repr__(self):
+		'''
+		'''
+		return '{SeriesInfo: %s}' % (self.__dict__)
 
 
 class EpisodesList(list):
@@ -165,7 +169,6 @@ class EpisodeInfo(object):
 		'''
 		self.__dict__.update(sanitize_returned_data(data))
 		
-		# check if the episode was aired
 		if (data.firstaired.string is not None):
 			air_date = time.strptime(self.first_aired, '%Y-%m-%d')
 			current_date = time.localtime(time.time())
@@ -173,14 +176,12 @@ class EpisodeInfo(object):
 		else:
 		 	self.is_unaired = False
 		
-		# check if the episode is a special
 		self.is_special = (self.season_number == '0')
 
 	def __repr__(self):
 		'''
 		'''
-		return '{EpisodeInfo: {id: %s, season: %s, episode number: %s, episode name: %s}}' % \
-			(self.id, self.season_number, self.episode_number, self.episode_name)
+		return '{EpisodeInfo: %s}' % (self.__dict__)
 
 
 class ActorsList(list):
@@ -204,8 +205,7 @@ class ActorInfo(object):
 	def __repr__(self):
 		'''
 		'''
-		return '{ActorInfo: {id:%s, name: %s, role: %s}}' % \
-			(self.id, self.name, self.role)
+		return '{ActorInfo: %s}' % (self.__dict__)
 
 
 class GraphicsList(list):
@@ -239,9 +239,7 @@ class GraphicInfo(object):
 	def __repr__(self):
 		'''
 		'''
-		return '{GraphicInfo: {id: %s, type: %s, path: %s}}\n' % \
-			(self.id, self.banner_type, self.banner_path)
-		# return '%s\n' % (self.__dict__)
+		return '{GraphicInfo: %s}' % (self.__dict__)
 
 
 class PyTVDB(object):
@@ -255,7 +253,7 @@ class PyTVDB(object):
 		self.api_key = api_key
 		self.language = language
 
-	# TODO Implement TypeArgumentException, IOException, BadZipFileException, HTTP404Exception, ConnectionException
+	# TODO raise TypeArgumentException, IOException, BadZipFileException, HTTP404Exception, ConnectionException
 	def _get_data(self, series_id):
 		'''
 		get series(tv show) information from thetvdb.com and cache the results
@@ -299,7 +297,7 @@ class PyTVDB(object):
 
 			for series_data in data:
 				results.append(SeriesPreview(series_data))
-		else :
+		else:
 			return None
 
 		return results
@@ -309,128 +307,3 @@ class PyTVDB(object):
 		get series(tv show) info from thetvdb.com and return a SeriesInfo object
 		'''
 		return SeriesInfo(self._get_data(series_id))
-
-
-#------------ TESTING
-# series_id: ['game of thrones': 121361, 'breaking bad': 81189]
-
-tvdb = PyTVDB('D229EEECFE78BA5F')
-
-# search = tvdb.search('thrones')
-# for s in search:
-# 	print(s.id, s.title, s.overview)
-
-series = tvdb.get_series(121361)
-
-# actors = series.actors
-# print(actors)
-
-graphics = series.graphics
-# print(graphics)
-
-posters = graphics.get_by_type(GraphicsList.TYPE_POSTER)
-print posters
-
-# episodes = series.episodes
-# print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
-# print '\nEPISODES LEN:', len(episodes)
-# for ep in episodes:
-# 	print ep
-
-# episodes.include_specials = True
-# episodes.include_unaired = True
-# print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
-# print '\nEPISODES LEN:', len(episodes)
-# for ep in episodes:
-# 	print ep
-
-# episodes.include_specials = False
-# episodes.include_unaired = True
-# print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
-# print '\nEPISODES LEN:', len(episodes)
-# for ep in episodes:
-# 	print ep
-
-# episodes.include_specials = True
-# episodes.include_unaired = False
-# print '\n>>>> INCLUDE SPECIALS', episodes.include_specials, 'INCLUDE UNAIRED', episodes.include_unaired
-# print '\nEPISODES LEN:', len(episodes)
-# for ep in episodes:
-# 	print ep
-
-# print '\n>>>> GET SEASON 2'
-# season = series.episodes.get_season(2)
-# for ep in season:
-# 	print ep
-
-# print '\n>>>> GET SEASON 4'
-# season = series.episodes.get_season(4)
-# for ep in season:
-# 	print ep.id, ep.season_number, ep.episode_number, ep.episode_name
-
-# episodes.include_unaired = False
-# print '\n>>>> GET SEASON 4', 'include_unaired', episodes.include_unaired
-# season = series.episodes.get_season(4)
-# for ep in season:
-# 	print ep.id, ep.season_number, ep.episode_number, ep.episode_name
-
-# print '\n>>>> SEASON 02 EPISODE 05'
-
-# got_s02e05 = series.episodes.get_episode(2, 5)
-# print got_s02e05.id, got_s02e05.season_number, got_s02e05.episode_number, got_s02e05.episode_name
-
-# # print '\n>>>> SEASON 05 EPISODE 01'
-
-# # got_s02e05 = series.episodes.get_episode(5, 1)
-# # print got_s02e05.id, got_s02e05.season_number, got_s02e05.episode_number, got_s02e05.episode_name
-
-# episodes.include_unaired = True
-
-# print '\n>>>> GET UNAIRED', episodes.include_unaired
-# unaired = episodes.get_unaired()
-# for ep in unaired:
-# 	print ep.id, ep.season_number, ep.episode_number, ep.episode_name, ep.is_special,  ep.is_unaired
-
-# episodes.include_unaired = False
-
-# print '\n>>>> GET UNAIRED', episodes.include_unaired
-# unaired = episodes.get_unaired()
-# for ep in unaired:
-# 	print ep.id, ep.season_number, ep.episode_number, ep.episode_name, ep.is_special,  ep.is_unaired
-
-# episodes.include_specials = True
-# print '\n>>>> GET SPECIALS', episodes.include_specials
-# specials = episodes.get_specials()
-# for ep in specials:
-# 	print ep.id, ep.season_number, ep.episode_number, ep.episode_name, ep.is_special,  ep.is_unaired
-
-# episodes.include_specials = False
-
-# print '\n>>>> GET SPECIALS', episodes.include_specials
-# specials = episodes.get_specials()
-# for ep in specials:
-# 	print ep.id, ep.season_number, ep.episode_number, ep.episode_name, ep.is_special,  ep.is_unaired
-
-# print '\n>>>> CONTAINS: G.O.T EPISODE IN G.O.T EPISODES LIST', got_s02e05, episodes
-# print (got_s02e05 in episodes)
-
-# bb = tvdb.get_series(81189)
-# bb_episodes = bb.episodes
-# bb_s04e05 = bb.episodes.get_episode(4, 5)
-
-# print '\n>>>> CONTAINS: B.B EPISODE IN B.B EPISODES LIST', bb_s04e05, bb_episodes
-# print (bb_s04e05 in bb_episodes)
-
-# print '\n>>>> CONTAINS: G.O.T EPISODE IN B.B EPISODES LIST', got_s02e05, bb_episodes
-# print (got_s02e05 in bb_episodes)
-
-# print '\n>>>> CONTAINS: B.B EPISODE IN G.O.T EPISODES LIST', bb_s04e05, episodes
-# print (bb_s04e05 in episodes)
-
-# # print tvdb.get_series(121361)
-# # print tvdb.get_series('121361')
-# # print tvdb.get_series('81189')
-# # print tvdb.get_series(81189)
-# # print tvdb.get_series('121361')
-# # print tvdb.get_series(90989999999999)
-
