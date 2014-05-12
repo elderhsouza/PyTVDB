@@ -1,10 +1,11 @@
 import time
 import requests
+
 from zipfile import ZipFile
 from tempfile import TemporaryFile
 from bs4 import BeautifulSoup
 
-def filter_dict_value(value):
+def _filter_dict_value(value):
 	'''
 	'''
 	if '.jpg' in value:
@@ -12,7 +13,7 @@ def filter_dict_value(value):
 
 	return value.encode('utf-8')
 
-def filter_dict_key(key):
+def _filter_dict_key(key):
 	'''
 	'''
 	search_for = (
@@ -34,13 +35,13 @@ def filter_dict_key(key):
 	
 	return key
 
-def sanitize_returned_data(data):
+def _sanitize_returned_data(data):
 	'''
 	'''
 	result = {}
 	for item in data:
 		if item.name is not None and item.string is not None:
-			result[filter_dict_key(item.name)] = filter_dict_value(item.string)
+			result[_filter_dict_key(item.name)] = _filter_dict_value(item.string)
 
 	return result
 
@@ -51,7 +52,7 @@ class SeriesPreview(object):
 	def __init__(self, data):
 		'''
 		'''
-		self.__dict__.update(sanitize_returned_data(data))
+		self.__dict__.update(_sanitize_returned_data(data))
 
 	def __repr__(self):
 		'''
@@ -65,7 +66,7 @@ class SeriesInfo(object):
 	def __init__(self, data):
 		'''
 		'''
-		self.__dict__.update(sanitize_returned_data(data['info'].find('series')))
+		self.__dict__.update(_sanitize_returned_data(data['info'].find('series')))
 		
 		self.episodes = EpisodesList(data['info'].find_all('episode'))
 		self.actors = ActorsList(data['actors'].find_all('actor'))
@@ -135,7 +136,7 @@ class EpisodesList(list):
 		'''
 		Get an episode from a specified season and episode number
 
-		Args:
+		Arguments:
 			season_number: the number of the season; defaults to 1
 			episode_number: the number of the episode; defaults to 1
 		Returns:
@@ -167,11 +168,12 @@ class EpisodeInfo(object):
 	def __init__(self, data):
 		'''
 		'''
-		self.__dict__.update(sanitize_returned_data(data))
+		self.__dict__.update(_sanitize_returned_data(data))
 		
 		if (data.firstaired.string is not None):
 			air_date = time.strptime(self.first_aired, '%Y-%m-%d')
 			current_date = time.localtime(time.time())
+
 			self.is_unaired = (current_date < air_date)
 		else:
 		 	self.is_unaired = False
@@ -200,7 +202,7 @@ class ActorInfo(object):
 	def __init__(self, data):
 		'''
 		'''
-		self.__dict__.update(sanitize_returned_data(data))
+		self.__dict__.update(_sanitize_returned_data(data))
 
 	def __repr__(self):
 		'''
@@ -230,26 +232,51 @@ class GraphicsList(list):
 
 class GraphicInfo(object):
 	'''
+	Represents a graphic (series poster, season poster, banner or fanart)
+
+	Instance Attributes:
+		id: 
+		banner_path:
+		banner_type:
+		colors:
+		language:
+		rating:
+		rating_count:
+		series_name:
+		thumbnail_path:
+		vignette_path:
 	'''
 	def __init__(self, data):
 		'''
 		'''
-		self.__dict__.update(sanitize_returned_data(data))
+		self.__dict__.update(_sanitize_returned_data(data))
 
 	def __repr__(self):
-		'''
-		'''
 		return '{GraphicInfo: %s}' % (self.__dict__)
 
 
 class PyTVDB(object):
 	'''
+	Exposes data from thetvdb.com API
+
+	Class Attributes:
+		version:
+		mirror: 
+
+	Instance Attributes:
+		api_key:
+		language:
 	'''
 	version = '0.0.1'
 	mirror = 'http://thetvdb.com'
 
 	def __init__(self, api_key, language = 'en'):
 		'''
+		PyTVDB Class constructor
+
+		Arguments:
+			api_key:
+			language:
 		'''
 		self.api_key = api_key
 		self.language = language
@@ -257,10 +284,13 @@ class PyTVDB(object):
 	# TODO raise TypeArgumentException, IOException, BadZipFileException, HTTP404Exception, ConnectionException
 	def _get_data(self, series_id):
 		'''
-		get series(tv show) information from thetvdb.com and cache the results
+		Get series data from thetvdb.com
+
+		Arguments:
+			series_id:
 		'''
 		series_id = str(series_id)
-
+		
 		response = requests.get('%s/api/%s/series/%s/all/%s.zip' % (self.mirror, self.api_key, series_id, self.language))
 		if response.status_code != 200:
 			return None
@@ -285,8 +315,14 @@ class PyTVDB(object):
 	# TODO raise ArgumentTypeError, ConnectionException, HTTPNot200CodeError
 	def search(self, query):
 		'''
-		search thetvdb.com database for series(tvshow) containing the query 
-		and return a list of SeriesPreview objects with the results
+		Search the thetvdb.com database for series
+
+		Arguments:
+			query:
+		Returns:
+			List of SeriesPreview objects or None if no results were found
+		Raises:
+			TypeError
 		'''
 		response = requests.get('%s/api/GetSeries.php?seriesname=%s' % (self.mirror, query))
 		response.raise_for_status()
