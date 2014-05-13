@@ -11,7 +11,7 @@ def _filter_dict_value(value):
 	if '.jpg' in value:
 		return '%s/banners/%s' % (PyTVDB.mirror, value)
 
-	return value.encode('utf-8')
+    return value.encode('utf-8')
 
 def _filter_dict_key(key):
 	'''
@@ -32,7 +32,7 @@ def _filter_dict_key(key):
 	)
 	if key in search_for:
 		return replace_by[search_for.index(key)]
-	
+
 	return key
 
 def _sanitize_returned_data(data):
@@ -67,7 +67,7 @@ class SeriesInfo(object):
 		'''
 		'''
 		self.__dict__.update(_sanitize_returned_data(data['info'].find('series')))
-		
+
 		self.episodes = EpisodesList(data['info'].find_all('episode'))
 		self.actors = ActorsList(data['actors'].find_all('actor'))
 		self.graphics = GraphicsList(data['graphics'].find_all('banner'))
@@ -117,13 +117,13 @@ class EpisodesList(list):
 
 	# TODO raise IndexError, TypeError
 	def get_season(self, season_number = 1):
-		'''
-		Gets all episodes from a specified season.
+		'''Gets all episodes from a specified season.
 
-		Args:
-		    season_number: the number of the season; defaults to 1
+		Arguments:
+		    season_number -- the series season number -- defaults to 1
+
 		Returns:
-		    a list of EpisodeInfo objects for each episode on the season.
+		    a list of EpisodeInfo instances for each episode on the season.
 		Raises:
 		    KeyError: if season_number is < 1 or > then the total number of seasons.
 		    TypeError: if season_number is not convertible to an integer
@@ -133,17 +133,17 @@ class EpisodesList(list):
 
 	# TODO raise IndexError, TypeError
 	def get_episode(self, season_number = 1, episode_number = 1):
-		'''
-		Get an episode from a specified season and episode number
+		'''Get an episode from a specified season and episode number
 
 		Arguments:
-			season_number: the number of the season; defaults to 1
-			episode_number: the number of the episode; defaults to 1
+			season_number -- the number of the season; defaults to 1
+			episode_number -- the number of the episode; defaults to 1
+
 		Returns:
 			an EpisodeInfo object or None if the episode is not found
 		Raises:
-			KeyError: if season_number or episode_number is < 1 or > then the total number of seasons and episodes
-			TypeError: if season_number or episode_number is not convertible to an integer
+			IndexError -- if season_number or episode_number is < 1 or > then the total number of seasons and episodes
+			TypeError -- if season_number or episode_number is not convertible to an integer
 		'''
 		return self.get_season(season_number)[episode_number - 1]
 
@@ -169,7 +169,7 @@ class EpisodeInfo(object):
 		'''
 		'''
 		self.__dict__.update(_sanitize_returned_data(data))
-		
+
 		if (data.firstaired.string is not None):
 			air_date = time.strptime(self.first_aired, '%Y-%m-%d')
 			current_date = time.localtime(time.time())
@@ -177,7 +177,7 @@ class EpisodeInfo(object):
 			self.is_unaired = (current_date < air_date)
 		else:
 		 	self.is_unaired = False
-		
+
 		self.is_special = (self.season_number == '0')
 
 	def __repr__(self):
@@ -213,11 +213,6 @@ class ActorInfo(object):
 class GraphicsList(list):
 	'''
 	'''
-	TYPE_FANART = 'fanart'
-	TYPE_POSTER = 'poster'
-	TYPE_SEASON = 'season'
-	TYPE_SERIES = 'series'
-
 	def __init__(self, graphics):
 		'''
 		'''
@@ -235,17 +230,22 @@ class GraphicInfo(object):
 	Represents a graphic (series poster, season poster, banner or fanart)
 
 	Instance Attributes:
-		id: 
-		banner_path:
-		banner_type:
-		colors:
-		language:
-		rating:
-		rating_count:
-		series_name:
-		thumbnail_path:
-		vignette_path:
+		id --
+		banner_path --
+		banner_type --
+		colors --
+		language --
+		rating --
+		rating_count --
+		series_name --
+		thumbnail_path --
+		vignette_path --
 	'''
+	TYPE_FANART = 'fanart'
+	TYPE_POSTER = 'poster'
+	TYPE_SEASON = 'season'
+	TYPE_SERIES = 'series'
+
 	def __init__(self, data):
 		'''
 		'''
@@ -256,41 +256,45 @@ class GraphicInfo(object):
 
 
 class PyTVDB(object):
-	'''
-	Exposes data from thetvdb.com API
+	'''Module to expose data from thetvdb.com API
 
 	Class Attributes:
-		version:
-		mirror: 
+		version -- symver
+		mirror -- base domain path
 
 	Instance Attributes:
-		api_key:
-		language:
+		api_key -- API Key for use with the thetvdb.com API - must be obtained at thetvdb.com
+		language -- base language for data returned from thetvdb.com API - it defaults to 'en' (English)
 	'''
 	version = '0.0.1'
 	mirror = 'http://thetvdb.com'
 
+	# TODO - raise ValueError for language parameter
 	def __init__(self, api_key, language = 'en'):
-		'''
-		PyTVDB Class constructor
+		'''PyTVDB Class constructor
 
 		Arguments:
-			api_key:
-			language:
+			api_key -- valid thetvdb.com API Key
+			language -- base language for data returned from thetvdb.com API - it defaults to 'en' (English)
 		'''
 		self.api_key = api_key
 		self.language = language
 
-	# TODO raise TypeArgumentException, IOException, BadZipFileException, HTTP404Exception, ConnectionException
+	# TODO raise TypeError, IOException, BadZipFileException
 	def _get_data(self, series_id):
-		'''
-		Get series data from thetvdb.com
+		'''Get series data from thetvdb.com
 
 		Arguments:
-			series_id:
+			series_id -- the id of the series from thetvdb.com
+
+		Returns:
+			a SeriesInfo instance or None if the series_id parameter was not found
+
+		Raises:
+			TypeError -- the parameter must be either a positive integer or a string
 		'''
 		series_id = str(series_id)
-		
+
 		response = requests.get('%s/api/%s/series/%s/all/%s.zip' % (self.mirror, self.api_key, series_id, self.language))
 		if response.status_code != 200:
 			return None
@@ -312,18 +316,25 @@ class PyTVDB(object):
 
 		return data
 
-	# TODO raise ArgumentTypeError, ConnectionException, HTTPNot200CodeError
+	# TODO - implement
+	def get_languages(self):
+		pass
+
 	def search(self, query):
-		'''
-		Search the thetvdb.com database for series
+		'''Search the thetvdb.com database for series
 
 		Arguments:
-			query:
+			query -- the search term (eg: 'Thrones')
+
 		Returns:
-			List of SeriesPreview objects or None if no results were found
+			a list of SeriesPreview instances or None if no results were found
+
 		Raises:
-			TypeError
+			TypeError -- the parameter query must be a string
 		'''
+		if not isinstance(query, str):
+			raise TypeError('Parameter query must be a string.')
+
 		response = requests.get('%s/api/GetSeries.php?seriesname=%s' % (self.mirror, query))
 		response.raise_for_status()
 
@@ -334,10 +345,10 @@ class PyTVDB(object):
 
 			for series_data in data:
 				results.append(SeriesPreview(series_data))
+
+			return results
 		else:
 			return None
-
-		return results
 
 	def get_series(self, series_id) :
 		'''
