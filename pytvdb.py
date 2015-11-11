@@ -11,7 +11,7 @@ def _filter_dict_value(value):
 	if '.jpg' in value:
 		return '%s/banners/%s' % (PyTVDB.mirror, value)
 
-    return value.encode('utf-8')
+	return value.encode('utf-8')
 
 def _filter_dict_key(key):
 	'''
